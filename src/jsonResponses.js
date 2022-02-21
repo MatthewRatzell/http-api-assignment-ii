@@ -1,12 +1,12 @@
 const query = require('querystring');
 // will be cleared on shutdown
-const cards = {};
+const users = {};
 
 // function to respond with a json object
-const respondJSON = (request, response, status, object, contentType = 'application/json') => {
+const respondJSON = (request, response, status, object) => {
   // object for our headers
   const headers = {
-    'Content-Type': contentType,
+    'Content-Type': 'application/json',
   };
 
   // send response with json object
@@ -27,16 +27,15 @@ const respondJSONMeta = (request, response, status) => {
 };
 
 // get user object
-const getCards = (request, response) => {
+const getUsers = (request, response) => {
   const responseJSON = {
-    cards,
+    users,
   };
   return respondJSON(request, response, 200, responseJSON);
 };
 
-//const returnCards
 // get meta info about user object
-const getCardsMeta = (request, response) => respondJSONMeta(request, response, 200);
+const getUsersMeta = (request, response) => respondJSONMeta(request, response, 200);
 
 // function for 404 not found requests with message
 const notFound = (request, response) => {
@@ -56,7 +55,9 @@ const notFoundMeta = (request, response) => {
   respondJSONMeta(request, response, 404);
 };
 // function to add a user from a POST body
-const addCard = (request, response, body) => {
+const addUser = (request, response, body) => {
+  // write something out if this fires
+  console.log('fired');
   // default json message
   const responseJSON = {
     message: 'Name and age are both required.',
@@ -66,7 +67,7 @@ const addCard = (request, response, body) => {
   // We might want more validation than just checking if they exist
   // This could easily be abused with invalid types (such as booleans, numbers, etc)
   // If either are missing, send back an error message as a 400 badRequest
-  if (!body.title || !body.description || !body.dueDate) {
+  if (!body.name || !body.age) {
     responseJSON.id = 'missingParams';
     return respondJSON(request, response, 400, responseJSON);
   }
@@ -75,21 +76,19 @@ const addCard = (request, response, body) => {
   let responseCode = 204;
 
   // If the user doesn't exist yet
-  if (!cards[body.title]) {
+  if (!users[body.name]) {
     // Set the status code to 201 (created) and create an empty user
     responseCode = 201;
-    cards[body.title] = {};
+    users[body.name] = {};
   }
 
   // add or update fields for this user name
-  cards[body.title].title = body.title;
-  cards[body.title].description = body.description;
-  cards[body.title].dueDate = body.dueDate;
+  users[body.name].name = body.name;
+  users[body.name].age = body.age;
 
   // if response is created, then set our created message
   // and sent response with a message
   if (responseCode === 201) {
-    responseJSON.id = 'that shit do be working tho';
     responseJSON.message = 'Created Successfully';
     return respondJSON(request, response, responseCode, responseJSON);
   }
@@ -97,8 +96,7 @@ const addCard = (request, response, body) => {
   // if status cpde ios 204 it wont have a body
   return respondJSONMeta(request, response, responseCode);
 };
-
-const parseBody = (request, response, handler = addCard) => {
+const parseBody = (request, response, handler = addUser) => {
   // The request will come in in pieces. We will store those pieces in this
   // body array.
   const body = [];
@@ -130,20 +128,18 @@ const parseBody = (request, response, handler = addCard) => {
     const bodyString = Buffer.concat(body).toString();
     const bodyParams = query.parse(bodyString);
 
-    console.log(`Body params: ${bodyString}`);
-
     // Once we have the bodyParams object, we will call the handler function. We then
     // proceed much like we would with a GET request.
-    addCard(request, response, bodyParams);
+    handler(request, response, bodyParams);
   });
 };
 
 // set public modules
 module.exports = {
-  getCards,
-  getCardsMeta,
+  getUsers,
+  getUsersMeta,
   notFound,
   notFoundMeta,
-  addCard,
+  addUser,
   parseBody,
 };

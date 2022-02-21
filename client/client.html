@@ -2,51 +2,173 @@
 <html lang="en">
 
 <head>
-  <title>Task Manager</title>
+  <title>Our simple HTTP server</title>
   <link rel="stylesheet" type="text/css" href="/style.css">
-  <script src="/main.js" type="text/javascript"></script>
+
   <script>
+    //if head request no parseResponse will be received 
+    const handleResponse = async (response, parseResponse) => {
 
-    window.onload = function(){
-      let addNewCardForm = document.querySelector("#addNewCardForm");
-      init(addNewCardForm);
-    }
+      //Grab the content section so that we can write to it
+      const content = document.querySelector('#content');
 
+      //Based on the status of the response, write something.
+      switch (response.status) {
+        case 200:
+          content.innerHTML = `<b>Success</b>`;
+          break;
+        case 201:
+          content.innerHTML = `<b>Created</b>`;
+          break;
+        //204 is just not a parsedResponse
+        case 204:
+          content.innerHTML = `<b>Updated(No Content)</b>`;
+          break;
+        case 400:
+          content.innerHTML = `<b>Bad Request</b>`;
+          break;
+        case 404:
+          content.innerHTML = `<b>Resource Not Found</b>`;
+          break;
+        default:
+          content.innerHTML = `Error code not implemented by client.`;
+          break;
+      }
+
+      //If we should parse a response (meaning we made a get request)
+      if (parseResponse) {
+        //Parse the response to json. This is an async function, so we will await it.
+        let obj = await response.json();
+        //making sure we log it out to our console
+        console.log(obj);
+        //To display the data easily, we will just stringify it again and display it.
+        let jsonString = JSON.stringify(obj);
+        //updating dom to  contain our jsonstring we made
+        content.innerHTML += `<p>${jsonString}</p>`;
+        //if there is a message display it
+        if(obj.message){
+          content.innerHTML = `<p>${obj.id}</p>`;
+          content.innerHTML += `<p>${obj.message}</p>`
+        }
+      } //bottom case it ends up being a post request
+      else if (response.status == 201 || response.status == 204) {
+        //If we don't have a response to parse, just say we recieved metadata
+        content.innerHTML += '<p>Post Request Made</p>';
+      }
+      else if (response.status == 400 ) {
+        //this exists so it doesnt enter the last elsed
+      }
+      else{
+        //If we don't have a response to parse, just say we recieved metadata
+        content.innerHTML += '<p>Meta Data Received From Head Request</p>';
+      }
+
+
+    };
+
+    //function to send request. This is marked as async since we will use await.
+    const requestUpdate = async (userForm) => {
+
+      //Grab the url and method from the html form below
+      const url = userForm.querySelector('#urlField').value;
+      const method = userForm.querySelector('#methodSelect').value;
+
+      //Await our fetch response. Go to the URL, use the right method, and attach the headers.
+      let response = await fetch(url, {
+        method,
+        headers: {
+          'Accept': 'application/json'
+        },
+      });
+
+      //Once we have our response, send it into handle response. The second parameter is a boolean
+      //that says if we should parse the response or not. We will get a response to parse on get
+      //requests so we can do an inline boolean check, which will return a true or false to pass in.
+      handleResponse(response, method === 'get');
+    };
+
+    //function to send post data back to our server
+    const sendPost = async (nameForm) => {
+      //Grab all the info from the form
+      const nameAction = nameForm.getAttribute('action');
+      const nameMethod = nameForm.getAttribute('method');
+
+      const nameField = nameForm.querySelector('#nameField');
+      const ageField = nameForm.querySelector('#ageField');
+
+      //Build a data string in the FORM-URLENCODED format.
+      const formData = `name=${nameField.value}&age=${ageField.value}`;
+
+      //Make a fetch request and await a response. Set the method to
+      //the one provided by the form (POST). Set the headers. Content-Type
+      //is the type of data we are sending. Accept is the data we would like
+      //in response. Then add our FORM-URLENCODED string as the body of the request.
+      let response = await fetch(nameAction, {
+        //nameMethod will be post
+        method: nameMethod,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        //body of this json object
+        body: formData,
+      });
+
+      //Once we have a response, handle it.
+      handleResponse(response);
+    };
+
+
+
+    const init = () => {
+      //grab form
+      const userForm = document.querySelector('#userForm');
+      //Grab the form
+      const nameForm = document.querySelector('#nameForm');
+      //function to handle our get request. In this case, it also cancels the built in html form action
+      const getUsers = (e) => {
+        e.preventDefault();
+        requestUpdate(userForm);
+        return false;
+      }
+      //function that handles adding a user to our json object
+      const addUser = (e) => {
+        e.preventDefault();
+        sendPost(nameForm);
+        return false;
+      }
+
+      //Call addUser when the submit event fires on the form.
+      nameForm.addEventListener('submit', addUser);
+      //add event listener
+      userForm.addEventListener('submit', getUsers);
+    };
+
+    window.onload = init;
   </script>
 </head>
 
 <body>
   <section id="top">
-    <h3>Enter Username below if User Has Saved Data</h3>
-    <form id="firebaseForm" action="/loadFirebase">
-
-      <label for="username">Username: </label>
-      <input id="nameField" type="text" name="username" />
-
-      <input type="submit" value="Load Profile" />
+    <h3>POST Status Code Tests</h3>
+    <form id="nameForm" action="/addUser" method="post">
+      <label for="name">Name: </label>
+      <input id="nameField" type="text" name="name" />
+      <label for="age">Age: </label>
+      <input id="ageField" type="number" name="age" min="0" max="100" step="1" />
+      <input type="submit" value="Add User" />
     </form>
-    <hr></hr>
-    <h3>Enter Details of Card Below to Add</h3>
-
-    <form id="addNewCardForm" action="/addCard" method="post">
-
-      <label for="cardTitle">Title:</label>
-      <input id="title" type="text" name="cardTitle" />
-
-      <label for="cardDesctiption">Description:</label>
-      <input id="description" type="text" name="cardDescription" />
-
-      <label for="cardDueDate">Due Date:</label>
-      <input id="dueDate" type="datetime-local" name="cardDueDate">
-
-
-      <label for="fireBaseUserName">Firebase Code(optional):</label>
-      <input id="fireBaseUserName" type="text" name="fireBaseUserName">
-
-      <input type="submit" value="Add Card To Planner" />
+    <form id="userForm" action="/getUsers" method="get">
+      <select id='urlField'>
+        <option value='/getUsers'>/getUsers</option>
+        <option value='/notReal'>/notReal</option>
+      </select>
+      <select id="methodSelect">
+        <option value="get">GET</option>
+        <option value="head">HEAD</option>
+      </select>
+      <input type="submit" value="Get User" />
     </form>
-    <hr></hr>
-    <div class="card-list"></div>
   </section>
   <section id="content">
   </section>
