@@ -1,6 +1,7 @@
 const http = require('http'); // pull in the http server module
 const url = require('url'); // pull in the url module
 // pull in the query string module
+const query = require('querystring');
 
 // pull in our html response handler file
 const htmlHandler = require('./htmlResponses.js');
@@ -19,15 +20,16 @@ const urlStruct = {
   GET: {
     '/': htmlHandler.getIndex,
     '/style.css': htmlHandler.getCSS,
-    '/getUsers': jsonHandler.getUsers,
+    '/main.js': htmlHandler.getJavaScript,
+    '/getCards': jsonHandler.getCards,
     notFound: jsonHandler.notFound,
   },
   HEAD: {
-    '/getUsers': jsonHandler.getUsersMeta,
+    '/getCards': jsonHandler.getCardsMeta,
     notFound: jsonHandler.notFoundMeta,
   },
   POST: {
-    '/addUser': jsonHandler.parseBody,
+    '/addCard': jsonHandler.parseBody,
     notFound: jsonHandler.notFoundMeta,
   },
 };
@@ -36,17 +38,13 @@ const urlStruct = {
 const onRequest = (request, response) => {
   // first we have to parse information from the url
   const parsedUrl = url.parse(request.url);
-
-  // now we check to see if we have something to handle the
-  // request. This syntax may look verbose, but essentially
-  // what we are doing is indexing into urlStruct by the method
-  // which returns another object. We then index into that object
-  // by the pathname to get the handler. Inside the if, we can
-  // use that same syntax to call the actual function.
+  // grab the query parameters (?key=value&key2=value2&etc=etc)
+  // and parse them into a reusable object by field name
+  const params = query.parse(parsedUrl.query);
   if (urlStruct[request.method][parsedUrl.pathname]) {
-    urlStruct[request.method][parsedUrl.pathname](request, response);
+    urlStruct[request.method][parsedUrl.pathname](request, response, params);
   } else {
-    urlStruct[request.method].notFound(request, response);
+    urlStruct[request.method].notFound(request, response, params);
   }
 };
 
